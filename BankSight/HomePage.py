@@ -26,7 +26,7 @@ def load_data():
     my_cur.execute(""" drop table if exists branch """)
     my_cur.execute(""" drop table if exists support_tickets """)   
     connection.commit() 
-    my_cur.execute(""" create table if not exists customer (customer_id varchar(10) primary key,name varchar(100),gender char(1)
+    my_cur.execute(""" create table if not exists customer (customer_id varchar(10) not null primary key,name varchar(100),gender char(1)
     ,age INT,city varchar(50),aaccount_type varchar(50),join_date date )""")
 
     my_cur.execute("""create table if not exists account (cust_id varchar(10) primary key,acc_bal float, last_updated datetime,
@@ -92,39 +92,69 @@ def load_data():
             values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) """, (row['Ticket_ID'],row['Customer_ID'],row['Loan_ID'],row['Account_ID'],row['Branch_Name'],
                   row['Issue_Category'],row['Description'],row['Date_Opened'],row['Date_Closed'],row['Priority'],
                   row['Status'],row['Resolution_Remarks'],row['Support_Agent'],row['Channel'],row['Customer_Rating']))
+    #st.write(my_cur.execute (""" PRAGMA table_info(customer) """))
     connection.commit()
 select_val=st.sidebar.radio("Navigation",["Home Page","Information","Filter Data","Crud Operations","Q&A","Reload Data"])
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] {
+        background-color: #E8DFFF;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 if select_val=="Home Page":
     st.title("Welcome to BluePlanet Bank")
+    
+    st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(to right, #8360f3, #2ebfe1);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
     #check null values
     #st.write(support.isnull().sum())
 elif select_val=="Information":
+    
     st.title("Details of all the tables")
     select_details=st.selectbox("Select one option to view details",["Customer Details","Account Details","Transactions Details"
                             ,"Loan Details",
                             "Credit Card Details","Branch Details","Support Ticket Details"]) 
     if select_details=="Customer Details":
-        st.table(my_cur.execute("""select * from customer """))
+        df = pd.read_sql_query("SELECT * FROM customer", connection)
+        st.dataframe(df, width=1000, height=9000)
     elif select_details=="Account Details":
-        st.table(my_cur.execute("""select * from account """))
+        df = pd.read_sql_query("SELECT * FROM account", connection)
+        st.dataframe(df, width=1000, height=9000)
     elif select_details=="Transactions Details":
-        st.table(my_cur.execute("""select * from transactions """))
+        df= pd.read_sql_query("select * FROM transactions", connection)
+        st.dataframe(df, width=1000, height=9000)
     elif select_details=="Loan Details":
-        st.table(my_cur.execute("""select * from loan """))
+        df = pd.read_sql_query("SELECT * FROM loan", connection)
+        st.dataframe(df, width=1000, height=9000)
     elif select_details=="Credit Card Details":
-        st.table(my_cur.execute("""select * from credit_card """))
+        df = pd.read_sql_query("SELECT * FROM credit_card", connection)
+        st.dataframe(df, width=1000, height=9000)
     elif select_details=="Branch Details":
-        st.table(my_cur.execute("""select * from branch """))
+        df = pd.read_sql_query("SELECT * FROM branch", connection)
+        st.dataframe(df, width=1000, height=9000)
     elif select_details=="Support Ticket Details":
-        st.table(my_cur.execute("""select * from support_tickets """))
+        df=pd.read_sql_query("SELECT * FROM support_tickets", connection)
+        st.dataframe(df, width=1000, height=9000)
         #st.write(transcation)
     #st.write(my_cur.execute("""desc account """))
     #st.write(my_cur.execute("PRAGMA table_info(account)").fetchall())
 elif select_val=="Filter Data":
     st.title("Filter Data from tables")
-    select_filter=st.selectbox("Select one option to view details",["Customer Details","Account Details","Transactions Details"
-                            ,"Loan Details",
-                            "Credit Card Details","Branch Details","Support Ticket Details"]) 
+    select_filter=st.selectbox("Select one option to view details",["Customer Details","Account Details"]) 
     if select_filter=="Customer Details":
         cu_query="select * from Customer where 1=1 "
         cust_id=[row[0] for row in my_cur.execute("SELECT distinct customer_id FROM customer").fetchall()]
@@ -169,22 +199,15 @@ elif select_val=="Filter Data":
             cu_query =cu_query+"" + " AND aaccount_type = " + "'"+cu_account_type+"'"
         if cu_join_date_str!="":
             cu_query =cu_query+"" + " AND join_date = " + "'"+cu_join_date_str+"'"
-        st.table(my_cur.execute(cu_query))
-        
-        #st.write(str(cu_query))
-
+        st.dataframe(my_cur.execute(cu_query))
+    
     elif select_filter=="Account Details":
-        st.table(my_cur.execute("""select * from account """))
-    elif select_filter=="Transactions Details":
-        st.table(my_cur.execute("""select * from transactions """))
-    elif select_filter=="Loan Details":
-        st.table(my_cur.execute("""select * from loan """))
-    elif select_filter=="Credit Card Details":
-        st.table(my_cur.execute("""select * from credit_card """))
-    elif select_filter=="Branch Details":
-        st.table(my_cur.execute("""select * from branch """))
-    elif select_filter=="Support Ticket Details":
-        st.table(my_cur.execute("""select * from support_tickets """))
+        cust_id_val= [x[0] for x in (my_cur.execute("select cust_id from account").fetchall())]
+        cust_id_val=[""]+cust_id_val
+        ac_acc_id=st.selectbox("Search by customer id",cust_id_val)
+        if ac_acc_id:
+         st.dataframe(my_cur.execute("""select * from account where cust_id=?""",(ac_acc_id,)))
+    
 elif select_val=="Crud Operations":
     st.title("Add, Update, Delete Operations")
     select_crud=st.selectbox("Select one option to perform Curd Operations",["Add Customer","Update Customer","Delete Customer"])
@@ -192,7 +215,7 @@ elif select_val=="Crud Operations":
         st.subheader("Add Customer Details")
         cust_id=st.text_input("Enter Customer ID")
         cust_name=st.text_input("Enter Customer Name")
-        cust_age=st.number_input("Enter Customer Age")
+        cust_age=int(st.number_input("Enter Customer Age"))
         cust_gender=st.text_input("Enter Customer Gender")
         cust_city=st.text_input("Enter Customer City")
         cust_account_type=st.text_input("Enter Customer Account Type")
@@ -200,11 +223,15 @@ elif select_val=="Crud Operations":
         if st.button("Add Customer"):
             #exception handling for primary key
             try:
-                my_cur.execute(""" select * from customer where customer_id=? """,(cust_id,))
-                row=my_cur.fetchone()
-                if row:
-                    st.error("Customer ID already exists. Please use a different Customer ID.")
+                if not cust_id:
+                    st.error("customer id cannot be empty.")
                     st.stop()
+                else:
+                    my_cur.execute(""" select * from customer where customer_id=? """,(cust_id,))
+                    row=my_cur.fetchone()
+                    if row:
+                        st.error("Customer ID already exists. Please use a different Customer ID.")
+                        st.stop()
             except Exception as e:
                 st.error(f"An error occurred while checking for existing Customer ID: {e}")
                 st.stop()
@@ -217,12 +244,14 @@ elif select_val=="Crud Operations":
     elif select_crud=="Update Customer":
         st.subheader("Update Customer Details")
         cust_id=st.text_input("Enter Customer ID to Update")
-        cust_name=st.text_input("Enter New Customer Name")
-        cust_age=st.number_input("Enter New Customer Age")
-        cust_gender=st.text_input("Enter New Customer Gender")
-        cust_city=st.text_input("Enter New Customer City")
-        cust_account_type=st.text_input("Enter New Customer Account Type")
-        cust_join_date=st.date_input("Enter New Customer Join Date")
+        if cust_id:
+            #cust_name=st.text_input("Enter New Customer Name")
+            cust_name=st.text_input("Enter New Customer Name",value=my_cur.execute(""" select name from customer where customer_id=? """,(cust_id,)).fetchone()[0])
+            cust_age=st.number_input("Enter New Customer Age",value=my_cur.execute(""" select age from customer where customer_id=? """,(cust_id,)).fetchone()[0])
+            cust_gender=st.text_input("Enter New Customer Gender",value=my_cur.execute(""" select gender from customer where customer_id=? """,(cust_id,)).fetchone()[0])
+            cust_city=st.text_input("Enter New Customer City",value=my_cur.execute (""" select city from customer where customer_id=? """,(cust_id,)).fetchone()[0])
+            cust_account_type=st.text_input("Enter New Customer Account Type",value=my_cur.execute (""" select aaccount_type from customer where customer_id=? """,(cust_id,)).fetchone()[0])
+            cust_join_date=st.date_input("Enter New Customer Join Date",value=pd.to_datetime(my_cur.execute (""" select join_date from customer where customer_id=? """,(cust_id,)).fetchone()[0]))
         if st.button("Update Customer"):
             my_cur.execute(""" update customer set name=?, gender=?, age=?, city=?, aaccount_type=?, join_date=?
                 where customer_id=? """, (cust_name,cust_gender,cust_age,cust_city,
