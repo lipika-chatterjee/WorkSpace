@@ -107,7 +107,8 @@ st.markdown(
 )
 if select_val=="Home Page":
     st.title("Welcome to BluePlanet Bank")
-    
+    st.text("At Blue Planet Bank, we combine trusted financial services with a commitment to innovation, security, and environmental responsibility." \
+    " Whether you’re saving for the future, growing a business, or managing daily finances, we’re here to support your journey.")
     st.markdown(
     """
     <style>
